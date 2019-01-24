@@ -1,0 +1,127 @@
+
+-- --------------------------------------------------------------------- --
+
+CHANDEF  VDchannels
+ ::=
+     In   :: Input  ;
+     Out  :: Output
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+TYPEDEF  MyString
+ ::=
+     A | B | C | D | E | F | G 
+ENDDEF
+
+{-
+FUNCDEF  isValid (s :: String) :: Bool
+ ::=
+     strinre ( s, REGEX('[a-z]*') )
+ENDDEF
+-}
+
+-- --------------------------------------------------------------------- --
+
+TYPEDEF  User
+ ::=
+       User   { u_id              :: MyString
+              ; u_label           :: MyString
+              ; u_email           :: MyString
+              ; u_customerNumber  :: MyString
+              }
+     | LUser  { l_label           :: MyString
+              ; l_email           :: MyString
+              ; l_customerNumber  :: MyString
+              }
+ENDDEF
+
+TYPEDEF  UserList
+ ::=
+       Nil
+     | Const { hd :: User
+             ; tl :: UserList
+             }
+ENDDEF
+
+FUNCDEF len ( l :: UserList ) :: Int
+ ::=
+     IF isNil(l)
+     THEN 0
+     ELSE 1 + len(tl(l))
+     FI
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+TYPEDEF  Input
+ ::=
+       PostUser_Req      { user                :: User
+                         }
+     | PostShipment_Req  { pq_customerEmail    :: MyString
+                         ; pq_userEmail        :: MyString
+                         ; pq_customerNumber   :: MyString
+                         }
+     | GetShipment_Req   { gs_id               :: MyString
+                         }
+     | GetUser_Req_Id    { gu_id               :: MyString
+                         }
+     | GetUser_Req_Email { gu_email            :: MyString
+                         }
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+    
+TYPEDEF  Output
+ ::=
+       PostUser_Resp     { user       :: User       -- User, not Luser
+                         }
+     | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
+                         }                          -- GetUser_Req_Email => any length
+                                                    -- User, not LUser
+     | PostShipment_resp { ps_customerEmail    :: MyString
+                         ; ps_userEmail        :: MyString
+                         ; ps_customerNumber   :: MyString
+                         ; ps_shipment_id      :: MyString
+                         ; ps_ProcessedByTask  :: Bool
+                         ; ps_ErrorMessage     :: MyString   -- only if ps_ProcessedByTask == False
+                         }
+     | Error404
+
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+PROCDEF  ReqResp [ In :: Input; Out :: Output ] () 
+ ::=
+          In  ? req  -- [[ isValid(req) ]]
+     >->  Out ? resp
+     >->  ReqResp [ In, Out ] ()
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+MODELDEF  VD
+ ::=
+     CHAN IN    In
+     CHAN OUT   Out
+     BEHAVIOUR
+                ReqResp [ In, Out ] ()
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+CNECTDEF  Sut
+ ::=
+     CLIENTSOCK
+
+     CHAN OUT  In                         HOST "localhost"  PORT 7890
+     ENCODE    In ? x                 ->  ! toString(x)
+
+     CHAN  IN  Out                        HOST "localhost"  PORT 7890
+     DECODE    Out ! fromString(x)   <-   ? x
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+-- --------------------------------------------------------------------- --
+
