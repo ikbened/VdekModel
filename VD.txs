@@ -1,4 +1,3 @@
-
 -- --------------------------------------------------------------------- --
 
 CHANDEF  VDchannels
@@ -9,12 +8,12 @@ ENDDEF
 
 -- --------------------------------------------------------------------- --
 
+{-
 TYPEDEF  MyString
  ::=
      A | B | C | D | E | F | G 
 ENDDEF
 
-{-
 FUNCDEF  isValid (s :: String) :: Bool
  ::=
      strinre ( s, REGEX('[a-z]*') )
@@ -23,19 +22,7 @@ ENDDEF
 
 -- --------------------------------------------------------------------- --
 
-TYPEDEF  User
- ::=
-       User   { u_id              :: MyString
-              ; u_label           :: MyString
-              ; u_email           :: MyString
-              ; u_customerNumber  :: MyString
-              }
-     | LUser  { l_label           :: MyString
-              ; l_email           :: MyString
-              ; l_customerNumber  :: MyString
-              }
-ENDDEF
-
+{-
 TYPEDEF  UserList
  ::=
        Nil
@@ -51,13 +38,40 @@ FUNCDEF len ( l :: UserList ) :: Int
      ELSE 1 + len(tl(l))
      FI
 ENDDEF
+-}
 
 -- --------------------------------------------------------------------- --
+-- --------------------------------------------------------------------- --
+TYPEDEF  Email
+ ::=
+        JanF
+      | JanT
+      | Ed
+      | Rachid
+      | Leo
+ENDDEF
+
+TYPEDEF  Label
+ ::=
+        LearnId
+      | VDE
+      | STS
+ENDDEF
 
 TYPEDEF  Input
  ::=
-       PostUser_Req      { user                :: User
+       PostUser_Req      { email               :: Email
+                         ; label               :: Label
+                         ; postcode            :: Int
                          }
+ENDDEF
+
+FUNCDEF  isValid (i :: Input) :: Bool
+ ::=
+      (1000 <= postcode(i)) /\ (postcode(i) <= 9999)
+ENDDEF
+
+{-
      | PostShipment_Req  { pq_customerEmail    :: MyString
                          ; pq_userEmail        :: MyString
                          ; pq_customerNumber   :: MyString
@@ -68,14 +82,29 @@ TYPEDEF  Input
                          }
      | GetUser_Req_Email { gu_email            :: MyString
                          }
-ENDDEF
+-}
 
 -- --------------------------------------------------------------------- --
-    
+
+TYPEDEF  User
+ ::=
+       User   { u_id              :: String
+              ; u_label           :: Label
+              ; u_email           :: Email
+              ; u_postcode        :: Int
+              }
+     | LUser  { l_label           :: Label
+              ; l_email           :: Email
+              ; l_customerNumber  :: Int
+              }
+ENDDEF
+
 TYPEDEF  Output
  ::=
        PostUser_Resp     { user       :: User       -- User, not Luser
                          }
+ENDDEF
+{- 
      | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
                          }                          -- GetUser_Req_Email => any length
                                                     -- User, not LUser
@@ -90,12 +119,19 @@ TYPEDEF  Output
 
 ENDDEF
 
+-}
 -- --------------------------------------------------------------------- --
 
 PROCDEF  ReqResp [ In :: Input; Out :: Output ] () 
  ::=
-          In  ? req  -- [[ isValid(req) ]]
-     >->  Out ? resp
+          In  ? req   [[ isValid(req) ]]
+     >->  Out ? resp  [[ IF   isPostUser_Resp(resp)
+                         THEN (u_email(user(resp))    == email(req))    /\
+                              (u_label(user(resp))    == label(req))    /\
+                              (u_postcode(user(resp)) == postcode(req))
+                         ELSE False
+                         FI
+                      ]]
      >->  ReqResp [ In, Out ] ()
 ENDDEF
 
@@ -115,13 +151,12 @@ CNECTDEF  Sut
  ::=
      CLIENTSOCK
 
-     CHAN OUT  In                         HOST "localhost"  PORT 7890
+     CHAN OUT  In                         HOST "localhost"  PORT 14444
      ENCODE    In ? x                 ->  ! toString(x)
 
-     CHAN  IN  Out                        HOST "localhost"  PORT 7890
+     CHAN  IN  Out                        HOST "localhost"  PORT 14444
      DECODE    Out ! fromString(x)   <-   ? x
 ENDDEF
 
 -- --------------------------------------------------------------------- --
 -- --------------------------------------------------------------------- --
-
