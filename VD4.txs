@@ -1,0 +1,179 @@
+
+-- --------------------------------------------------------------------- --
+
+CHANDEF  VDchannels
+ ::=
+     In   :: Input  ;
+     Out  :: Output
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+{-
+TYPEDEF  MyString
+ ::=
+     A | B | C | D | E | F | G 
+ENDDEF
+
+FUNCDEF  isValid (s :: String) :: Bool
+ ::=
+     strinre ( s, REGEX('[a-z]*') )
+ENDDEF
+-}
+
+-- --------------------------------------------------------------------- --
+
+TYPEDEF  UserList
+ ::=
+       Nil
+     | Const { hd :: User
+             ; tl :: UserList
+             }
+ENDDEF
+
+{- 
+FUNCDEF len ( l :: UserList ) :: Int
+ ::=
+     IF isNil(l)
+     THEN 0
+     ELSE 1 + len(tl(l))
+     FI
+ENDDEF
+-}
+
+-- --------------------------------------------------------------------- --
+-- --------------------------------------------------------------------- --
+TYPEDEF  Email
+ ::=
+        JanF
+      | JanT
+      | Ed
+      | Rachid
+      | Leo
+ENDDEF
+
+TYPEDEF  Label
+ ::=
+        LearnId
+      | VDE
+      | STS
+ENDDEF
+
+TYPEDEF  Input
+ ::=
+     PostUser_Req         { pu_email            :: Email
+                          ; label               :: Label
+                          ; postcode            :: Int
+                          }
+     | GetUserByEmail_Req { gu_email		:: Email
+                          }
+ENDDEF
+
+FUNCDEF  isValid (i :: Input) :: Bool
+ ::=
+     IF isPostUser_Req(i) THEN 
+       (1000 <= postcode(i)) /\ (postcode(i) <= 9999)
+     ELSE
+       True
+     FI
+ENDDEF
+
+{-
+     | PostShipment_Req  { pq_customerEmail    :: MyString
+                         ; pq_userEmail        :: MyString
+                         ; pq_customerNumber   :: MyString
+                         }
+     | GetShipment_Req   { gs_id               :: MyString
+                         }
+     | GetUser_Req_Id    { gu_id               :: MyString
+                         }
+     | GetUser_Req_Email { gu_email            :: MyString
+                         }
+-}
+
+-- --------------------------------------------------------------------- --
+
+TYPEDEF  User
+ ::=
+       User   { u_id              :: String
+              ; u_label           :: Label
+              ; u_email           :: Email
+              ; u_postcode        :: Int
+              }
+ENDDEF
+
+TYPEDEF  Output
+ ::=
+       PostUser_Resp     { user       :: User       -- User, not Luser
+                         }
+     | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
+                         }                          -- GetUser_Req_Email => any length
+ENDDEF
+{- 
+     | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
+                         }                          -- GetUser_Req_Email => any length
+                                                    -- User, not LUser
+     | PostShipment_resp { ps_customerEmail    :: MyString
+                         ; ps_userEmail        :: MyString
+                         ; ps_customerNumber   :: MyString
+                         ; ps_shipment_id      :: MyString
+                         ; ps_ProcessedByTask  :: Bool
+                         ; ps_ErrorMessage     :: MyString   -- only if ps_ProcessedByTask == False
+                         }
+     | Error404
+
+ENDDEF
+
+-}
+-- --------------------------------------------------------------------- --
+
+PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList) 
+ ::=
+          In  ? req   [[ isPostUser_Req(req) /\ isValid(req) ]]
+     >->  Out ? resp  [[ IF   isPostUser_Resp(resp)
+                         THEN (u_email(user(resp))    == pu_email(req))    /\
+                              (u_label(user(resp))    == label(req))    /\
+                              (u_postcode(user(resp)) == postcode(req))
+                         ELSE False
+                         FI
+                      ]]
+     >->  ReqResp [ In, Out ] (Const(user(resp), users))
+     ##
+          In  ? req   [[ isGetUserByEmail_Req(req) /\ isValid(req) ]]
+     >->  Out ? resp  [[ IF   isGetUser_Resp(resp)	
+                         THEN -- getUser moet (allen) in users bestaan
+			      -- email moet gelijk zijn
+                              isValidGetUsers(users, userList(resp))
+                         ELSE
+                              False
+                         FI
+                      ]]
+     >->  ReqResp [ In, Out ] (users)
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+MODELDEF  VD
+ ::=
+     CHAN IN    In
+     CHAN OUT   Out
+     BEHAVIOUR
+                ReqResp [ In, Out ] (Nil)
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+
+CNECTDEF  Sut
+ ::=
+     CLIENTSOCK
+
+     CHAN OUT  In                         HOST "localhost"  PORT 14444
+     ENCODE    In ? x                 ->  ! toString(x)
+
+     CHAN  IN  Out                        HOST "localhost"  PORT 14444
+     DECODE    Out ! fromString(x)   <-   ? x
+ENDDEF
+
+-- --------------------------------------------------------------------- --
+-- --------------------------------------------------------------------- --
+
