@@ -78,6 +78,11 @@ FUNCDEF  isValid (i :: Input) :: Bool
      FI
 ENDDEF
 
+FUNCDEF  isValidGetUsers (users::UserList; resp_users::UserList) :: Bool
+ ::=
+     True
+ENDDEF
+
 {-
      | PostShipment_Req  { pq_customerEmail    :: MyString
                          ; pq_userEmail        :: MyString
