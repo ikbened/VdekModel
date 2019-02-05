@@ -1,3 +1,4 @@
+
 -- --------------------------------------------------------------------- --
 
 CHANDEF  VDchannels
@@ -22,7 +23,6 @@ ENDDEF
 
 -- --------------------------------------------------------------------- --
 
-{-
 TYPEDEF  UserList
  ::=
        Nil
@@ -31,6 +31,7 @@ TYPEDEF  UserList
              }
 ENDDEF
 
+{- 
 FUNCDEF len ( l :: UserList ) :: Int
  ::=
      IF isNil(l)
@@ -60,15 +61,21 @@ ENDDEF
 
 TYPEDEF  Input
  ::=
-       PostUser_Req      { email               :: Email
-                         ; label               :: Label
-                         ; postcode            :: Int
-                         }
+     PostUser_Req         { pu_email            :: Email
+                          ; label               :: Label
+                          ; postcode            :: Int
+                          }
+     | GetUserByEmail_Req { gu_email		:: Email
+                          }
 ENDDEF
 
 FUNCDEF  isValid (i :: Input) :: Bool
  ::=
-      (1000 <= postcode(i)) /\ (postcode(i) <= 9999)
+     IF isPostUser_Req(i) THEN 
+       (1000 <= postcode(i)) /\ (postcode(i) <= 9999)
+     ELSE
+       True
+     FI
 ENDDEF
 
 {-
@@ -93,16 +100,14 @@ TYPEDEF  User
               ; u_email           :: Email
               ; u_postcode        :: Int
               }
-     | LUser  { l_label           :: Label
-              ; l_email           :: Email
-              ; l_customerNumber  :: Int
-              }
 ENDDEF
 
 TYPEDEF  Output
  ::=
        PostUser_Resp     { user       :: User       -- User, not Luser
                          }
+     | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
+                         }                          -- GetUser_Req_Email => any length
 ENDDEF
 {- 
      | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
@@ -122,17 +127,28 @@ ENDDEF
 -}
 -- --------------------------------------------------------------------- --
 
-PROCDEF  ReqResp [ In :: Input; Out :: Output ] () 
+PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList) 
  ::=
-          In  ? req   [[ isValid(req) ]]
+          In  ? req   [[ isPostUser_Req(req) /\ isValid(req) ]]
      >->  Out ? resp  [[ IF   isPostUser_Resp(resp)
-                         THEN (u_email(user(resp))    == email(req))    /\
+                         THEN (u_email(user(resp))    == pu_email(req))    /\
                               (u_label(user(resp))    == label(req))    /\
                               (u_postcode(user(resp)) == postcode(req))
                          ELSE False
                          FI
                       ]]
-     >->  ReqResp [ In, Out ] ()
+     >->  ReqResp [ In, Out ] (Const(user(resp), users))
+     ##
+          In  ? req   [[ isGetUserByEmail_Req(req) /\ isValid(req) ]]
+     >->  Out ? resp  [[ IF   isGetUser_Resp(resp)	
+                         THEN -- getUser moet (allen) in users bestaan
+			      -- email moet gelijk zijn
+                              isValidGetUsers(users, userList(resp))
+                         ELSE
+                              False
+                         FI
+                      ]]
+     >->  ReqResp [ In, Out ] (users)
 ENDDEF
 
 -- --------------------------------------------------------------------- --
@@ -142,7 +158,7 @@ MODELDEF  VD
      CHAN IN    In
      CHAN OUT   Out
      BEHAVIOUR
-                ReqResp [ In, Out ] ()
+                ReqResp [ In, Out ] (Nil)
 ENDDEF
 
 -- --------------------------------------------------------------------- --
@@ -160,3 +176,4 @@ ENDDEF
 
 -- --------------------------------------------------------------------- --
 -- --------------------------------------------------------------------- --
+
