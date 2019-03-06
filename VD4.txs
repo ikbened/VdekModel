@@ -78,10 +78,45 @@ FUNCDEF  isValid (i :: Input) :: Bool
      FI
 ENDDEF
 
-FUNCDEF  isValidGetUsers (users::UserList; resp_users::UserList) :: Bool
+FUNCDEF  isValidGetUsers (users::UserList; resp_users::UserList; email::Email) :: Bool
  ::=
-     True
+      LET usrs = filterEmailUserList(email,users)
+       IN usrs === resp_users 
+       NI
 ENDDEF
+
+FUNCDEF  filterEmailUserList (email :: Email; users :: UserList) :: UserList
+ ::=
+      IF   isNil(users)
+      THEN Nil
+      ELSE IF   u_email(hd(users)) == email
+           THEN Const(hd(users),filterEmailUserList(email,tl(users)))
+           ELSE filterEmailUserList(email,tl(users))
+           FI
+      FI
+ENDDEF
+
+FUNCDEF  === (ul1,ul2 :: UserList) :: Bool
+ ::=
+     (ul1 =<= ul2) /\ (ul2 =<= ul1)
+ENDDEF
+
+FUNCDEF  =<= (ul1,ul2 :: UserList) :: Bool
+ ::=
+     IF   isNil(ul1)
+     THEN True
+     ELSE (hd(ul1) <= ul2) /\ (tl(ul1) =<= ul2)
+     FI
+ENDDEF
+
+FUNCDEF  <= (u :: User; ul :: UserList) :: Bool
+ ::=
+     IF   isNil(ul)
+     THEN False
+     ELSE (u == hd(ul)) \/ (u <= tl(ul))
+     FI
+ENDDEF
+
 
 {-
      | PostShipment_Req  { pq_customerEmail    :: MyString
@@ -148,7 +183,7 @@ PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList)
      >->  Out ? resp  [[ IF   isGetUser_Resp(resp)	
                          THEN -- getUser moet (allen) in users bestaan
 			      -- email moet gelijk zijn
-                              isValidGetUsers(users, userList(resp))
+                              isValidGetUsers(users, userList(resp), gu_email(req))
                          ELSE
                               False
                          FI
@@ -172,10 +207,10 @@ CNECTDEF  Sut
  ::=
      CLIENTSOCK
 
-     CHAN OUT  In                         HOST "localhost"  PORT 14444
+     CHAN OUT  In                         HOST "localhost"  PORT 4444
      ENCODE    In ? x                 ->  ! toString(x)
 
-     CHAN  IN  Out                        HOST "localhost"  PORT 14444
+     CHAN  IN  Out                        HOST "localhost"  PORT 4444
      DECODE    Out ! fromString(x)   <-   ? x
 ENDDEF
 
