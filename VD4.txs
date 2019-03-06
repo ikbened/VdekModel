@@ -181,8 +181,7 @@ PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList)
      ##
           In  ? req   [[ isGetUserByEmail_Req(req) /\ isValid(req) ]]
      >->  Out ? resp  [[ IF   isGetUser_Resp(resp)	
-                         THEN -- getUser moet (allen) in users bestaan
-			      -- email moet gelijk zijn
+                         THEN 
                               isValidGetUsers(users, userList(resp), gu_email(req))
                          ELSE
                               False
