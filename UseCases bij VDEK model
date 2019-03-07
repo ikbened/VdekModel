@@ -1,0 +1,89 @@
+UseCases bij VDEK model
+
+
+Hieronder volgen een aantal cases die de SUT doorlopen op verschillende manieren. Tevens heb ik toegevoegd voorbeeld berichten die daarbij nodig zijn. De id's e.d. zijn indicatief en niet sluitend. 
+Omwille van de eenvoud heb ik veel parameters weggelaten. Deze beinvloeden niet de verwerking in onze SUT. Onder water worden er wel default waarden in gezet.
+
+1. Happy flow zonder historie, dwz een order waarvan zowel de customer email, de user email en het customer number nog niet bestaan in de database.
+- PostShipment_req(cust@mailinator.com,user@mailinator.com,18)
+retourneert: PostShipment_Resp(5b793f7a7ae2185d01fb7476,cust@mailinator.com,user@mailinator.com,true,)
+
+Mogelijke controles:
+- Er moet een customer zijn met email cust@mailinator.com.
+GetUserByEmail_Req(cust@mailinator.com)
+retourneert: GetUser_Resp(Const(User("5bbcac0f83e6756ffce52ea6",cust@mailinator.com,),Nil))
+
+- Er moet een user zijn met email user@mailinator.com.
+GetUserByEmail_Req(user@mailinator.com)
+retourneert: GetUser_Resp(Const(User("5bbcac0f83e6756ffce52ea7",user@mailinator.com,),Nil))
+
+- De customer heeft een UserClaim voor de customer number.
+GetUserClaimsByUserId_req(5bbcac0f83e6756ffce52ea6)
+GetUserClaims_Resp(usrclm(UserClaim(5bbcef2783e6756ffce52ea8,5bbcac0f83e6756ffce52ea6,customerNumber,18),Nil))
+
+- De user heeft geen UserClaims:
+GetUserClaimsByUserId_req(5bbcac0f83e6756ffce52ea7)
+GetUserClaims_Resp(Nil)
+
+
+2. De customer email bestaat reeds 2x, de order moet nu een fout opleveren
+- PostUser_Req(aap@aap.nl,learnId,1234AB)
+- PostUser_Req(aap@aap.nl,learnId,5678AB)
+- PostShipment_req(aap@aap.nl,user@mailinator.com,18)
+retourneert: 
+PostShipment_Resp(5b793fe67ae2185d01fb7477,aap@aap.nl,user@mailinator.com,false,Customer email is not unique within LearnId)
+
+Mogelijke controles:
+- De customer heeft GEEN UserClaim voor de customer number.
+GetUserClaimsByUserId_req(5bbcac0f83e6756ffce52ea6)
+GetUserClaims_Resp(Nil)
+
+- Er moet GEEN user zijn met email user@mailinator.com.
+GetUserByEmail_Req(user@mailinator.com)
+retourneert: GetUser_Resp(il)
+
+- Er moet GEEN derde customer aangemaakt zijn met email aap@aap.nl. De gereourneerde accounts moeten overeenkomen met de accounts die we hebben gepost bij start van deze test.
+GetUserByEmail_Req(aap@aap.nl)
+retourneert: GetUser_Resp(Const(User("5bbcabab83e6756ffce52ea4",learnId,aap@aap.nl,1234AB),usr(User("5bbcabb583e6756ffce52ea5",learnId,aap@aap.nl,5678AB),Nil))))
+
+
+
+
+
+
+Overzicht van requests / repsonses (requests en responses matchen niet altijd, het zijn slechts voorbeeld berichten):
+
+PostShipment_req(customer_email, user_email, customernumber)
+PostShipment_Resp(orderIdb7476,customer_email, user_email,status verwerking, error_tekst)
+
+GetUserByEmail_Req(aap@aap.nl)
+GetUser_Resp(Const(User("5bbcac0f83e6756ffce52ea6",learnId,aap@aap.nl,1234AB),Nil))
+
+
+
+Moet ik nog uitwerken, maar dienen wel als voorbeeld:
+ * PostUser_Req(aap@aap.nl,learnId,1234AB)
+ * PostUser_Resp(User("5bbcb5e783e6756ffce52ea7",learnId,aap@aap.nl,1234AB))
+ * PostUser_Resp_Err(400)
+ *
+ * GetUserByEmail_Req(aap@aap.nl)
+ * GetUser_Resp(usr(User("5bbcac0f83e6756ffce52ea6",learnId,bokito@aap.nl,1234AB),Nil))
+ * GetUser_Resp(usr(User("5bbcabab83e6756ffce52ea4",learnId,aap@aap.nl,1234AB),usr(User("5bbcabb583e6756ffce52ea5",learnId,aap@aap.nl,4321BA),Nil)))
+ * GetUser_Resp(Nil)
+ * GetUser_Resp_Err(404)
+ *
+ * GetUserById_Req(5b7931797ae2185d01fb7470)
+ * GetUser_Resp(User(5b7931797ae2185d01fb7470,learnId,aap@aap.nl,1234AB))
+ * GetUser_Resp(Nil)
+ * GetUser_Resp_Err(404)
+ *
+ * PostUserClaim_Req(5b7933b27ae2185d01fb7472,customerNumber,1819)
+ * PostUserClaim_Resp(UserClaim(5b793d4d7ae2185d01fb7475,5b7933b27ae2185d01fb7472,customerNumber,1819))
+ *
+ * GetUserClaimsByUserId_req(5bbcabab83e6756ffce52ea4)
+ * GetUserClaims_Resp(usrclm(UserClaim(5bbcef2783e6756ffce52ea8,5bbcabab83e6756ffce52ea4,customerNumber,1819),Nil))
+ *
+ * PostShipment_req(cust@mailinator.com,user@mailinator.com,18)
+ * PostShipment_Resp(5b793f7a7ae2185d01fb7476,cust@mailinator.com,user@mailinator.com,true,)
+ * PostShipment_Resp_Err(400)
+ * PostShipment_Resp(5b793fe67ae2185d01fb7477,aap@aap.nl,user@mailinator.com,false,Customer email is not unique within LearnId)
