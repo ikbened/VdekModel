@@ -23,8 +23,13 @@ ENDDEF
 
 TYPEDEF Guid
   ::=
-    A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|0|1|2|3|4|5|6|7|8|9
+      Guid { guid :: String }
+ENDDEF
 
+FUNCDEF  isValidGuid ( s :: String ) :: Bool
+ ::=
+      strinre(s, REGEX('[A-Za-z0-9]{25}'))
+ENDDEF
 
 -- --------------------------------------------------------------------- --
 
