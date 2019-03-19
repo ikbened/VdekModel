@@ -29,7 +29,7 @@ TYPEDEF  UserList
              }
 ENDDEF
 
-{- 
+
 FUNCDEF len ( l :: UserList ) :: Int
  ::=
      IF isNil(l)
@@ -37,10 +37,11 @@ FUNCDEF len ( l :: UserList ) :: Int
      ELSE 1 + len(tl(l))
      FI
 ENDDEF
--}
+
 
 -- --------------------------------------------------------------------- --
 -- --------------------------------------------------------------------- --
+
 TYPEDEF  Email
  ::=
         JanF
@@ -63,12 +64,10 @@ TYPEDEF  Input
                           ; label               :: Label
                           ; postcode            :: Int
                           }
-    | GetUserByEmail_Req  { gu_email		:: Email
+    | GetUserByEmail_Req  { gu_email    :: Email
                           }
     | GetUserById_Req     { gu_id       :: Guid
                           }
-
-
 ENDDEF
 
 FUNCDEF  isValid (i :: Input) :: Bool
@@ -80,24 +79,28 @@ FUNCDEF  isValid (i :: Input) :: Bool
      FI
 ENDDEF
 
+
 FUNCDEF  isValidGetUserById (users::UserList; resp_user::User; id::Guid) :: Bool
  ::=
-      LET resp_userList = Const(resp_user; Nil)
-      LET usrs = filterUserListById(id,users)
-       IN usrs === resp_userList
-       NI
+      LET resp_userList = Const(resp_user, Nil) ;
+          usrs = filterUserListById(id,users)
+       IN
+          usrs === resp_userList
+       NI  
 ENDDEF
+
 
 FUNCDEF  filterUserListById (id :: Guid; users :: UserList) :: UserList
  ::=
       IF   isNil(users)
       THEN Nil
-      ELSE IF   u_id(hd(users)) == id
+      ELSE IF   u_id(hd(users)) == guid(id)
            THEN Const(hd(users),filterUserListById(id,tl(users)))
-           ELSE filterEmailUserList(id,tl(users))
+           ELSE filterUserListById(id,tl(users))
            FI
       FI
 ENDDEF
+
 
 FUNCDEF  isValidGetUserByEmail (users::UserList; resp_users::UserList; email::Email) :: Bool
  ::=
@@ -105,6 +108,7 @@ FUNCDEF  isValidGetUserByEmail (users::UserList; resp_users::UserList; email::Em
        IN usrs === resp_users 
        NI
 ENDDEF
+
 
 FUNCDEF  filterUserListByEmail (email :: Email; users :: UserList) :: UserList
  ::=
@@ -116,6 +120,7 @@ FUNCDEF  filterUserListByEmail (email :: Email; users :: UserList) :: UserList
            FI
       FI
 ENDDEF
+
 
 FUNCDEF  === (ul1,ul2 :: UserList) :: Bool
  ::=
@@ -151,13 +156,17 @@ ENDDEF
 
 TYPEDEF  Output
  ::=
-       isPostUser_Resp      { user       :: User       -- User, not Luser
+       PostUser_Resp        { p_user     :: User       -- User, not Luser
                             }
      | GetUserByEmail_Resp  { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
                             }                          -- GetUser_Req_Email => any length
-     | GetUserById_Resp     { user       :: User
+
+     | GetUserById_Resp     { g_user     :: User
                             } 
 ENDDEF
+
+
+
 {- 
      | GetUser_Resp      { userList   :: UserList   -- GetUser_Req_Id    => lege of een el.
                          }                          -- GetUser_Req_Email => any length
@@ -174,22 +183,23 @@ ENDDEF
 ENDDEF
 
 -}
+
 -- --------------------------------------------------------------------- --
 
 PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList) 
  ::=
           In  ? req   [[ isPostUser_Req(req) /\ isValid(req) ]]
      >->  Out ? resp  [[ IF   isPostUser_Resp(resp)
-                         THEN (u_email(user(resp))    == pu_email(req))    /\
-                              (u_label(user(resp))    == label(req))    /\
-                              (u_postcode(user(resp)) == postcode(req))
+                         THEN (u_email(p_user(resp))    == pu_email(req)) /\
+                              (u_label(p_user(resp))    == label(req))    /\
+                              (u_postcode(p_user(resp)) == postcode(req))
                          ELSE False
                          FI
                       ]]
-     >->  ReqResp [ In, Out ] (Const(user(resp), users))
+     >->  ReqResp [ In, Out ] (Const(p_user(resp), users))
      ##
           In  ? req   [[ isGetUserByEmail_Req(req) /\ isValid(req) ]]
-     >->  Out ? resp  [[ IF   isGetUserByEmail_Resp(resp)	
+     >->  Out ? resp  [[ IF   isGetUserByEmail_Resp(resp) 
                          THEN 
                               isValidGetUserByEmail(users, userList(resp), gu_email(req))
                          ELSE
@@ -201,7 +211,7 @@ PROCDEF  ReqResp [ In :: Input; Out :: Output ] (users::UserList)
           In  ? req   [[ isGetUserById_Req(req) /\ isValid(req) ]]
      >->  Out ? resp  [[ IF   isGetUserById_Resp(resp)  
                          THEN 
-                              isValidGetUserById(users, resp, gu_id(req))
+                              isValidGetUserById(users, p_user(resp), gu_id(req))
                          ELSE
                               False
                          FI
@@ -234,4 +244,3 @@ ENDDEF
 
 -- --------------------------------------------------------------------- --
 -- --------------------------------------------------------------------- --
-
