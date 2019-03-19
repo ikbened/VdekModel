@@ -82,7 +82,7 @@ ENDDEF
 
 FUNCDEF  isValidGetUserById (users::UserList; resp_user::User; id::Guid) :: Bool
  ::=
-      LET resp_userList = Const(resp_user, Nil);
+      LET resp_userList = Const(resp_user; Nil)
       LET usrs = filterUserListById(id,users)
        IN usrs === resp_userList
        NI
